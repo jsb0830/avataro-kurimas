@@ -60,9 +60,29 @@
         body {
             background: linear-gradient(135deg, #fdf2f8 0%, #eef2ff 50%, #fff7ed 100%);
         }
+
+        .chat-scroll::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .chat-scroll::-webkit-scrollbar-thumb {
+            background: rgba(244, 114, 182, 0.35);
+            border-radius: 999px;
+        }
+
+        .msg-user {
+            background: linear-gradient(135deg, #ec4899 0%, #a855f7 100%);
+            color: white;
+        }
+
+        .msg-ai {
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(236, 72, 153, 0.2);
+            color: #374151;
+        }
     </style>
 </head>
-<body class="text-gray-800 font-sans min-h-screen flex flex-col items-center justify-center selection:bg-pink-200 selection:text-pink-900 pb-12">
+<body class="text-gray-800 font-sans min-h-screen flex flex-col items-center justify-start selection:bg-pink-200 selection:text-pink-900 pb-12">
 
     <!-- Header Section -->
     <header class="w-full max-w-6xl mx-auto pt-16 pb-12 px-6 text-center animate-fade-in">
@@ -187,6 +207,99 @@
         </article>
 
     </main>
+
+    <!-- Chat Section -->
+    <section class="w-full max-w-6xl mx-auto px-6 mt-12 animate-fade-in delay-400">
+        <div class="glass-panel border-2 border-white/60 rounded-3xl p-6 md:p-8 shadow-xl shadow-pink-100/60">
+            <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-5">
+                <div>
+                    <h2 class="text-2xl md:text-3xl font-extrabold text-gray-900">Pokalbis su Generalisto Karjeros AI</h2>
+                    <p class="text-sm md:text-base text-gray-600 mt-1">
+                        Asistentas atsako tik generalisto karjeros tema ir atsisako kitų klausimų.
+                    </p>
+                </div>
+                <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-pink-100 text-pink-700 border border-pink-200 w-fit">
+                    Expert Mode: Generalistas
+                </span>
+            </div>
+
+            <div id="chatMessages" class="chat-scroll h-[360px] overflow-y-auto rounded-2xl border border-pink-200/70 bg-pink-50/60 p-4 space-y-3">
+                <div class="msg-ai rounded-2xl px-4 py-3 max-w-[90%]">
+                    Sveiki! Esu generalisto karjeros ekspertas. Klauskite apie kompetencijas, karjeros kryptį, portfolio, CV, interviu ar mokymosi planą.
+                </div>
+            </div>
+
+            <form id="chatForm" class="mt-4 flex flex-col md:flex-row gap-3">
+                <textarea
+                    id="chatInput"
+                    rows="2"
+                    placeholder="Pvz.: Kaip generalistui pereiti iš junior į mid lygį per 6 mėn.?"
+                    class="flex-1 resize-none rounded-2xl border border-pink-200 bg-white/90 px-4 py-3 text-sm text-gray-800 outline-none focus:ring-2 focus:ring-pink-300"
+                    required
+                ></textarea>
+                <button
+                    id="sendBtn"
+                    type="submit"
+                    class="rounded-2xl px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-500 text-white font-semibold shadow-lg shadow-pink-200 hover:opacity-95 transition-opacity disabled:opacity-60"
+                >
+                    Siųsti
+                </button>
+            </form>
+            <p class="text-xs text-gray-500 mt-3">
+                Pastaba: klausimai ne apie generalisto karjerą bus mandagiai atmesti.
+            </p>
+        </div>
+    </section>
+
+    <script>
+        const chatForm = document.getElementById("chatForm");
+        const chatInput = document.getElementById("chatInput");
+        const chatMessages = document.getElementById("chatMessages");
+        const sendBtn = document.getElementById("sendBtn");
+
+        const appendMessage = (text, role) => {
+            const bubble = document.createElement("div");
+            bubble.className = role === "user"
+                ? "msg-user rounded-2xl px-4 py-3 max-w-[90%] ml-auto"
+                : "msg-ai rounded-2xl px-4 py-3 max-w-[90%]";
+            bubble.textContent = text;
+            chatMessages.appendChild(bubble);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        };
+
+        chatForm.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const message = chatInput.value.trim();
+            if (!message) return;
+
+            appendMessage(message, "user");
+            chatInput.value = "";
+            sendBtn.disabled = true;
+            sendBtn.textContent = "Siunčiama...";
+
+            try {
+                const response = await fetch("/api/generalist-chat", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ message })
+                });
+
+                const data = await response.json();
+                if (!response.ok) {
+                    const errorText = data.details ? `${data.error} (${data.details})` : (data.error || "Nepavyko gauti atsakymo.");
+                    appendMessage(errorText, "ai");
+                } else {
+                    appendMessage(data.reply, "ai");
+                }
+            } catch (error) {
+                appendMessage("Serverio klaida. Patikrinkite ar paleistas serveris.", "ai");
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.textContent = "Siųsti";
+                chatInput.focus();
+            }
+        });
+    </script>
 
 </body>
 </html>
